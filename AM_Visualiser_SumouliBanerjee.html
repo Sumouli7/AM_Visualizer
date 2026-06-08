@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Amplitude Modulation (AM) Visualizer</title>
+  <meta name="description"
+    content="An interactive, high-fidelity real-time Amplitude Modulation (AM) wave visualizer featuring customizable carrier frequency, modulating frequency, and modulation depth.">
+
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #1e1b4b 100%);
+      --panel-bg: rgba(17, 24, 39, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+
+      /* Wave Colors */
+      --color-modulating: #06b6d4;
+      /* Cyan */
+      --color-carrier: #d946ef;
+      /* Fuchsia */
+      --color-modulated: #10b981;
+      /* Emerald */
+      --color-envelope: rgba(245, 158, 11, 0.4);
+      /* Amber dashed */
+
+      --glow-modulating: rgba(6, 182, 212, 0.4);
+      --glow-carrier: rgba(217, 70, 239, 0.4);
+      --glow-modulated: rgba(16, 185, 129, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      max-width: 800px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      background: linear-gradient(to right, #22d3ee, #a78bfa, #f472b6);
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    p.subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      font-weight: 300;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 900px) {
+      .container {
+        grid-template-columns: 320px 1fr;
+      }
+    }
+
+    /* Glassmorphic Panel Styles */
+    .panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .visualizer-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-height: 500px;
+    }
+
+    /* Controls Styling */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-label {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Color indicators for labels */
+    .indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .ind-modulating {
+      background-color: var(--color-modulating);
+      box-shadow: 0 0 8px var(--glow-modulating);
+    }
+
+    .ind-carrier {
+      background-color: var(--color-carrier);
+      box-shadow: 0 0 8px var(--glow-carrier);
+    }
+
+    .ind-modulated {
+      background-color: var(--color-modulated);
+      box-shadow: 0 0 8px var(--glow-modulated);
+    }
+
+    /* Custom Slider Styles */
+    input[type="range"] {
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    input[type="range"]:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      transition: transform 0.1s, background-color 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Individual slider glow themes on active/hover */
+    #slider-fm::-webkit-slider-thumb {
+      background: var(--color-modulating);
+      box-shadow: 0 0 8px var(--glow-modulating);
+    }
+
+    #slider-fc::-webkit-slider-thumb {
+      background: var(--color-carrier);
+      box-shadow: 0 0 8px var(--glow-carrier);
+    }
+
+    #slider-m::-webkit-slider-thumb {
+      background: var(--color-modulated);
+      box-shadow: 0 0 8px var(--glow-modulated);
+    }
+
+    /* Action Buttons */
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    button {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      border: none;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    button.primary:hover {
+      background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+    }
+
+    /* Wave Display Areas */
+    .canvas-container {
+      position: relative;
+      flex-grow: 1;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      min-height: 400px;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Explanation overlay card */
+    .math-card {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .math-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .math-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Custom Checkbox Toggle */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+      user-select: none;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-round {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.1);
+      transition: .3s;
+      border-radius: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .slider-round:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider-round {
+      background-color: #4f46e5;
+    }
+
+    input:checked+.slider-round:before {
+      transform: translateX(22px);
+    }
+
+    /* Legend / HUD styles overlays on Canvas */
+    .hud-label {
+      position: absolute;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      pointer-events: none;
+    }
+
+    #hud-modulating {
+      top: 10px;
+      left: 10px;
+      color: var(--color-modulating);
+    }
+
+    #hud-carrier {
+      top: 34%;
+      transform: translateY(-50%);
+      left: 10px;
+      color: var(--color-carrier);
+    }
+
+    #hud-modulated {
+      bottom: 10px;
+      left: 10px;
+      color: var(--color-modulated);
+    }
+
+    /* Calculations Dashboard */
+    .calc-dashboard {
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 1rem 1.25rem;
+    }
+
+    .calc-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .calc-title::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      /* Matches emerald modulated wave color */
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--glow-modulated);
+    }
+
+    .calc-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    @media (min-width: 600px) {
+      .calc-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .calc-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .calc-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+
+    .calc-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0.15rem 0;
+    }
+
+    .calc-card.bandwidth .calc-value {
+      color: var(--color-modulating);
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+    }
+
+    .calc-card.power .calc-value {
+      color: var(--color-modulated);
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+
+    .calc-formula {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.35);
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Amplitude Modulation Visualizer</h1>
+    <p class="subtitle">An interactive visual laboratory for exploring AM synthesis and wave behavior</p>
+  </header>
+
+  <div class="container">
+    <!-- Sidebar Controls -->
+    <div class="panel">
+      <div class="control-group">
+        <div class="control-header">
+          <span class="control-label">
+            <span class="indicator ind-modulating"></span>
+            Modulating Freq (f<sub>m</sub>)
+          </span>
+          <span id="val-fm" class="control-value">2.0 Hz</span>
+        </div>
+        <input type="range" id="slider-fm" min="0.2" max="10" step="0.1" value="2">
+      </div>
+
+      <div class="control-group">
+        <div class="control-header">
+          <span class="control-label">
+            <span class="indicator ind-carrier"></span>
+            Carrier Freq (f<sub>c</sub>)
+          </span>
+          <span id="val-fc" class="control-value">30.0 Hz</span>
+        </div>
+        <input type="range" id="slider-fc" min="10" max="100" step="1" value="30">
+      </div>
+
+      <div class="control-group">
+        <div class="control-header">
+          <span class="control-label">
+            <span class="indicator ind-modulated"></span>
+            Modulation Index (m)
+          </span>
+          <span id="val-m" class="control-value">0.70</span>
+        </div>
+        <input type="range" id="slider-m" min="0.0" max="2.0" step="0.05" value="0.7">
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 0.25rem 0;">
+
+      <!-- Vis options -->
+      <div class="checkbox-container">
+        <span class="control-label">Show Signal Tracks</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-tracks" checked>
+          <span class="slider-round"></span>
+        </label>
+      </div>
+
+      <div class="checkbox-container">
+        <span class="control-label">Show Envelope Guide</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-envelope" checked>
+          <span class="slider-round"></span>
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button id="btn-play-pause" class="primary">
+          <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="currentColor">
+            <path id="play-pause-icon"
+              d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M14,14H16V10H14M8,14H10V10H8" />
+          </svg>
+          <span id="play-pause-text">Pause</span>
+        </button>
+        <button id="btn-reset">
+          <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+          </svg>
+          Reset
+        </button>
+      </div>
+
+      <div class="math-card">
+        <div class="math-formula">
+          s(t) = A<sub>c</sub> [1 + m · cos(2π f<sub>m</sub> t)] · cos(2π f<sub>c</sub> t)
+        </div>
+        <div class="math-desc">
+          The message signal (f<sub>m</sub>) alters the amplitude (envelope) of the high-frequency carrier wave
+          (f<sub>c</sub>). If m > 1.0, overmodulation occurs, resulting in phase reversal distortion.
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side Canvas Display -->
+    <div class="panel visualizer-panel">
+      <div class="canvas-container">
+        <canvas id="waveform-canvas"></canvas>
+        <div id="hud-modulating" class="hud-label">Modulating Signal (Message)</div>
+        <div id="hud-carrier" class="hud-label">Carrier Signal</div>
+        <div id="hud-modulated" class="hud-label">AM Modulated Signal</div>
+      </div>
+
+      <!-- Calculations Dashboard -->
+      <div class="calc-dashboard">
+        <h3 class="calc-title">Calculations Dashboard</h3>
+        <div class="calc-grid">
+          <div class="calc-card bandwidth">
+            <span class="calc-label">Bandwidth (B)</span>
+            <span class="calc-value" id="calc-bandwidth">4.0 Hz</span>
+            <span class="calc-formula">B = 2 · f<sub>m</sub></span>
+          </div>
+          <div class="calc-card power">
+            <span class="calc-label">Total Power Ratio (P<sub>t</sub>/P<sub>c</sub>)</span>
+            <span class="calc-value" id="calc-power-ratio">1.245</span>
+            <span class="calc-formula">P<sub>t</sub>/P<sub>c</sub> = 1 + m<sup>2</sup>/2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Elements
+    const canvas = document.getElementById('waveform-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const sliderFm = document.getElementById('slider-fm');
+    const sliderFc = document.getElementById('slider-fc');
+    const sliderM = document.getElementById('slider-m');
+
+    const valFm = document.getElementById('val-fm');
+    const valFc = document.getElementById('val-fc');
+    const valM = document.getElementById('val-m');
+
+    const toggleTracks = document.getElementById('toggle-tracks');
+    const toggleEnvelope = document.getElementById('toggle-envelope');
+
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const playPauseIcon = document.getElementById('play-pause-icon');
+    const playPauseText = document.getElementById('play-pause-text');
+    const btnReset = document.getElementById('btn-reset');
+
+    const hudModulating = document.getElementById('hud-modulating');
+    const hudCarrier = document.getElementById('hud-carrier');
+    const hudModulated = document.getElementById('hud-modulated');
+
+    const calcBandwidth = document.getElementById('calc-bandwidth');
+    const calcPowerRatio = document.getElementById('calc-power-ratio');
+
+    // State
+    let isRunning = true;
+    let time = 0;
+    let animationId = null;
+
+    // Simulation constants
+    const speedCoeff = 0.005; // Animation speed scaling factor
+
+    // SVG Icon Paths
+    const PLAY_PATH = "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M10,16.5V7.5L16,12L10,16.5Z";
+    const PAUSE_PATH = "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M14,14H16V10H14M8,14H10V10H8";
+
+    // Setup Canvas DPI Scaling
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Calculations Dashboard Logic
+    function updateCalculations() {
+      const fm = parseFloat(sliderFm.value);
+      const m = parseFloat(sliderM.value);
+
+      const bandwidth = 2 * fm;
+      const powerRatio = 1 + (m * m) / 2;
+
+      calcBandwidth.textContent = bandwidth.toFixed(1) + ' Hz';
+      calcPowerRatio.textContent = powerRatio.toFixed(3);
+    }
+
+    // Event Listeners
+    sliderFm.addEventListener('input', (e) => {
+      valFm.textContent = parseFloat(e.target.value).toFixed(1) + ' Hz';
+      updateCalculations();
+    });
+
+    sliderFc.addEventListener('input', (e) => {
+      valFc.textContent = parseFloat(e.target.value).toFixed(1) + ' Hz';
+    });
+
+    sliderM.addEventListener('input', (e) => {
+      valM.textContent = parseFloat(e.target.value).toFixed(2);
+      updateCalculations();
+    });
+
+    btnPlayPause.addEventListener('click', () => {
+      isRunning = !isRunning;
+      if (isRunning) {
+        playPauseIcon.setAttribute('d', PAUSE_PATH);
+        playPauseText.textContent = 'Pause';
+        animate();
+      } else {
+        playPauseIcon.setAttribute('d', PLAY_PATH);
+        playPauseText.textContent = 'Play';
+        cancelAnimationFrame(animationId);
+        // Draw one final static frame so slider adjustments still render while paused
+        draw();
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      sliderFm.value = 2.0;
+      sliderFc.value = 30.0;
+      sliderM.value = 0.70;
+
+      valFm.textContent = '2.0 Hz';
+      valFc.textContent = '30.0 Hz';
+      valM.textContent = '0.70';
+
+      time = 0;
+      updateCalculations();
+      draw();
+    });
+
+    // Handle updates when settings change during paused state
+    [sliderFm, sliderFc, sliderM, toggleTracks, toggleEnvelope].forEach(el => {
+      el.addEventListener('input', () => {
+        if (!isRunning) draw();
+      });
+      el.addEventListener('change', () => {
+        if (!isRunning) draw();
+      });
+    });
+
+    // Drawing Logic
+    function draw() {
+      const width = canvas.width / (window.devicePixelRatio || 1);
+      const height = canvas.height / (window.devicePixelRatio || 1);
+
+      // Clear canvas
+      ctx.clearRect(0, 0, width, height);
+
+      // Grid details
+      const showTracks = toggleTracks.checked;
+      const fm = parseFloat(sliderFm.value);
+      const fc = parseFloat(sliderFc.value);
+      const m = parseFloat(sliderM.value);
+      const showEnvelope = toggleEnvelope.checked;
+
+      // Layout sizing
+      let trackHeight, trackCenters;
+      if (showTracks) {
+        trackHeight = height / 3;
+        trackCenters = [
+          trackHeight * 0.5,  // Modulating wave
+          trackHeight * 1.5,  // Carrier wave
+          trackHeight * 2.5   // AM wave
+        ];
+        // Show labels
+        hudModulating.style.display = 'block';
+        hudCarrier.style.display = 'block';
+        hudModulating.style.top = '10px';
+        hudCarrier.style.top = `${trackHeight}px`;
+        hudModulated.style.bottom = '10px';
+      } else {
+        trackHeight = height;
+        trackCenters = [
+          height * 0.5,
+          height * 0.5,
+          height * 0.5
+        ];
+        // Hide individual labels, keep just modulated as primary label
+        hudModulating.style.display = 'none';
+        hudCarrier.style.display = 'none';
+        hudModulated.style.bottom = '10px';
+      }
+
+      // Draw Grid Lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+
+      // Draw horizontal track separators
+      if (showTracks) {
+        ctx.beginPath();
+        ctx.moveTo(0, trackHeight);
+        ctx.lineTo(width, trackHeight);
+        ctx.moveTo(0, trackHeight * 2);
+        ctx.lineTo(width, trackHeight * 2);
+        ctx.stroke();
+      }
+
+      // Draw vertical grid alignment ticks
+      ctx.beginPath();
+      const numLines = 12;
+      for (let i = 0; i <= numLines; i++) {
+        const x = (width / numLines) * i;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+      }
+      ctx.stroke();
+
+      // Core wave scaling
+      // Track height bounds amplitude to fit inside bounds
+      const maxAmp = trackHeight * 0.35;
+
+      // Draw Modulating Wave
+      if (showTracks) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.8)';
+        ctx.shadowColor = 'rgba(6, 182, 212, 0.4)';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 2.5;
+
+        for (let x = 0; x < width; x++) {
+          const tVal = time + (x / width) * 10;
+          const y = trackCenters[0] - Math.cos(2 * Math.PI * fm * tVal) * maxAmp;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0; // Reset shadow
+      }
+
+      // Draw Carrier Wave
+      if (showTracks) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(217, 70, 239, 0.8)';
+        ctx.shadowColor = 'rgba(217, 70, 239, 0.4)';
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = 1.5;
+
+        for (let x = 0; x < width; x++) {
+          const tVal = time + (x / width) * 10;
+          const y = trackCenters[1] - Math.cos(2 * Math.PI * fc * tVal) * maxAmp;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0; // Reset shadow
+      }
+
+      // Draw AM Modulated Wave
+      // Formula: s(t) = A_c * [1 + m * cos(2pi * fm * t)] * cos(2pi * fc * t)
+      const modulatedPoints = [];
+      const envelopePointsUpper = [];
+      const envelopePointsLower = [];
+
+      for (let x = 0; x < width; x++) {
+        const tVal = time + (x / width) * 10;
+
+        // Modulating factor
+        const modFactor = (1 + m * Math.cos(2 * Math.PI * fm * tVal));
+
+        // Final modulated amplitude scaling
+        // If track view, Carrier amp is 1, Modulating is 1. We scale so max total modulation (m=1) hits maxAmp
+        const baseAmp = showTracks ? maxAmp / (1 + Math.max(m, 1)) * 1.2 : maxAmp / (1 + Math.max(m, 1)) * 1.5;
+
+        const carrierVal = Math.cos(2 * Math.PI * fc * tVal);
+
+        const yModulated = trackCenters[2] - (baseAmp * modFactor * carrierVal);
+        const yEnvelopeUpper = trackCenters[2] - (baseAmp * modFactor);
+        const yEnvelopeLower = trackCenters[2] + (baseAmp * modFactor);
+
+        modulatedPoints.push({ x, y: yModulated });
+        envelopePointsUpper.push({ x, y: yEnvelopeUpper });
+        envelopePointsLower.push({ x, y: yEnvelopeLower });
+      }
+
+      // Draw Envelope Outline Guide if requested
+      if (showEnvelope) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]); // Dashed line
+
+        // Upper envelope
+        ctx.moveTo(envelopePointsUpper[0].x, envelopePointsUpper[0].y);
+        for (let i = 1; i < envelopePointsUpper.length; i++) {
+          ctx.lineTo(envelopePointsUpper[i].x, envelopePointsUpper[i].y);
+        }
+        ctx.stroke();
+
+        // Lower envelope
+        ctx.beginPath();
+        ctx.moveTo(envelopePointsLower[0].x, envelopePointsLower[0].y);
+        for (let i = 1; i < envelopePointsLower.length; i++) {
+          ctx.lineTo(envelopePointsLower[i].x, envelopePointsLower[i].y);
+        }
+        ctx.stroke();
+
+        ctx.setLineDash([]); // Reset dashed line
+      }
+
+      // Render AM Wave line
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.9)';
+      ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+
+      ctx.moveTo(modulatedPoints[0].x, modulatedPoints[0].y);
+      for (let i = 1; i < modulatedPoints.length; i++) {
+        ctx.lineTo(modulatedPoints[i].x, modulatedPoints[i].y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0; // Reset shadow
+    }
+
+    // Animation loop
+    function animate() {
+      if (!isRunning) return;
+      time += speedCoeff;
+      draw();
+      animationId = requestAnimationFrame(animate);
+    }
+
+    // Start
+    updateCalculations();
+    animate();
+  </script>
+</body>
+
+</html>
